@@ -1,23 +1,3 @@
-That's the clean version. Long, but with short lines.
-
-Instructions: open app.py on GitHub → ✏️ → long-press → Select all → 🗑️ → paste → Commit. Make sure requirements.txt has 4 lines.
-
-Then, wait about a minute, refresh the app.
-
-Let me also explain why it broke: long lines get broken when pasting on a phone; this version uses short lines so it's safe.
-
-Let me write the response with the code block. Keep the surrounding text minimal.
-</think>
-
-Classic mobile-paste damage! 😅 Long code lines get broken when pasting on a phone. Here's the **same ULTRA app, rebuilt with short lines** that survive phone pasting.
-
-## Replace the whole file safely
-
-1. GitHub → `app.py` → ✏️ (pencil)
-2. **Long-press → Select all → delete** (empty editor)
-3. Paste this → **Commit**
-
-```python
 import os
 import io
 import requests
@@ -237,6 +217,3 @@ with tabs[4]:
         else:
             pr = "Explain line by line: " + task
         study(pr, "💻 Result")
-```
-
-## Also check `requirements.txt` has all 4:

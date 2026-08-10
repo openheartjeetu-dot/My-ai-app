@@ -194,7 +194,8 @@ with tabs[3]:
         type=["png", "jpg", "jpeg"],
     )
     if up:
-        img = Image.open(up).convert("RGB")        st.image(img, caption="Original")
+        img = Image.open(up).convert("RGB")
+        st.image(img, caption="Original")
         g = st.toggle("⬛ Black & white")
         br = st.slider("☀️ Brightness", 0.5, 2.0, 1.0)
         co = st.slider("🎚️ Contrast", 0.5, 2.0, 1.0)
@@ -215,4 +216,4 @@ with tabs[3]:
             b.getvalue(),
             "edited.png",
             "image/png",
-)
+        )

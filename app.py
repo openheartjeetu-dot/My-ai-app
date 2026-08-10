@@ -9,23 +9,45 @@ from gtts import gTTS
 KEY = os.getenv("GROQ_API_KEY")
 
 st.set_page_config(
-    page_title="My AI App ULTRA",
-    page_icon="🚀",
+    page_title="My AI — ULTRA",
+    page_icon="🤖",
 )
 
 CSS = """
 <style>
-#MainMenu, footer, header {visibility: hidden;}
-h1 {
-  background: linear-gradient(90deg,#ff8a00,#e60073,#7b2ff7);
+#MainMenu, footer, header {visibility:hidden;}
+.stApp {background:#05070f;}
+h1, h2, h3, p, span {color:#e8ecff;}
+h1, h2 {
+  background: linear-gradient(90deg,#6ea8ff,#a06bff,#ff6ec7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+[data-testid="stChatMessage"] {
+  background:#0c1122 !important;
+  border:1px solid #232a4d;
+  border-radius:18px;
+}
+[data-testid="stChatInput"] textarea {
+  background:#0c1122 !important;
+  border:1.5px solid #7b5cff !important;
+  border-radius:16px;
+  box-shadow:0 0 20px rgba(123,92,255,.35);
+  color:#fff !important;
+}
+.stButton>button {
+  background:#141a35;
+  color:#cfd6ff;
+  border:1px solid #2a3160;
+  border-radius:14px;
+}
+.stButton>button:hover {
+  background:#1d2547;
+  border-color:#7b5cff;
 }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
-st.title("🚀 My AI App — ULTRA")
-
 if not KEY:
     st.error("Add GROQ_API_KEY in Secrets!")
     st.stop()
@@ -36,114 +58,126 @@ client = OpenAI(
 )
 
 PERSONALITIES = {
-    "🙂 Friendly Helper": "Warm friendly assistant. Short clear answers.",
-    "😂 Funny Friend": "Hilarious friend. Humor plus correct answers, short.",
-    "👨‍🏫 Great Teacher": "World-class teacher. Simple examples for a 12 year old.",
-    "💻 Coding Pro": "Senior engineer. Precise help, short code examples.",
+    "🙂 Friendly": "Warm friendly assistant. Short clear answers.",
+    "😂 Funny": "Hilarious friend. Humor plus correct answers.",
+    "👨‍🏫 Teacher": "World-class teacher. Simple examples.",
+    "💻 Coding Pro": "Senior engineer. Precise help.",
 }
-
 MODELS = {
     "⚡ Fast": "llama-3.1-8b-instant",
     "🧠 Smart": "qwen/qwen3.6-27b",
 }
 
-if "chat" not in st.session_state:
-    st.session_state.chat = []
+ss = st.session_state
+if "chat" not in ss: ss.chat = []
+if "name" not in ss: ss.name = ""
+if "tool" not in ss: ss.tool = None
 
 with st.sidebar:
     st.markdown("### ⚙️ Control Center")
+    ss.name = st.text_input("Your name", ss.name or "friend")
     pers = st.selectbox("Personality", list(PERSONALITIES))
     brain = st.selectbox("Brain", list(MODELS))
     creat = st.slider("Creativity", 0.0, 1.0, 0.7)
     speak = st.toggle("🔊 Speak replies")
     if st.button("🧹 Clear memory"):
-        st.session_state.chat = []
+        ss.chat = []
         st.rerun()
 
-def clean(t):
+def strip_think(t):
     if "</think>" in t:
         return t.split("</think>", 1)[1].strip()
     if "<think>" in t:
         return "🤔 thinking…"
     return t
 
-def ask(user_text):
-    with st.chat_message("user"):
-        st.write(user_text)
-    st.session_state.chat.append(
-        {"role": "user", "content": user_text}
-    )
-    msgs = [{"role": "system",
-             "content": PERSONALITIES[pers]}]
-    msgs = msgs + st.session_state.chat
-    with st.chat_message("assistant"):
-        with st.spinner("…"):
-            stream = client.chat.completions.create(
-                model=MODELS[brain],
-                messages=msgs,
-                stream=True,
-                temperature=creat,
-                max_tokens=600,
-            )
-            full = ""
-            for c in stream:
-                ok = c.choices and c.choices[0].delta.content
-                if ok:
-                    full += c.choices[0].delta.content
-            reply = clean(full)
-            st.write(reply)
-            if speak:
-                try:
-                    buf = io.BytesIO()
-                    gTTS(reply, lang="en").write_to_fp(buf)
-                    buf.seek(0)
-                    st.audio(buf, format="audio/mp3")
-                except Exception:
-                    pass
-    st.session_state.chat.append(
-        {"role": "assistant", "content": reply}
-    )
+def get_reply(msgs):
+    r = client.chat.completions.create(
+        model=MODELS[brain],
+        messages=msgs,
+        temperature=creat,
+        max_tokens=700,    )
+    return strip_think(r.choices[0].message.content)
 
-def study(prompt, title):
-    with st.spinner("…"):
-        r = client.chat.completions.create(
-            model=MODELS["⚡ Fast"],
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=800,
-        )
-        r = r.choices[0].message.content
-    st.markdown("### " + title)
-    st.markdown(r)
+def tts_bytes(text):
+    try:
+        b = io.BytesIO()
+        gTTS(text[:400], lang="en").write_to_fp(b)
+        b.seek(0)
+        return b.getvalue()
+    except Exception:
+        return None
 
-tabs = st.tabs([
-    "💬 Chat",
-    "🎨 Create Image",
-    "🖼️ Edit Photo",
-    "📚 Study",
-    "💻 Code",
-])
+tabs = st.tabs(["💬 Chat", "⚡ Tools", "🎨 Image", "🖼️ Edit"])
 
 with tabs[0]:
-    for m in st.session_state.chat:
+    st.markdown("## Hello, " + ss.name + " 👋")
+    st.caption("How can I help you today?")
+    for m in ss.chat:
         with st.chat_message(m["role"]):
             st.write(m["content"])
-    audio = st.audio_input("🎤 Or speak here")
-    if audio and st.button("🎤 Send my voice"):
+            if m.get("audio"):
+                st.audio(m["audio"], format="audio/mp3")
+    audio = st.audio_input("🎤 Speak here")
+    voice_text = None
+    if audio and st.button("🎤 Send voice"):
         with st.spinner("Listening…"):
             tr = client.audio.transcriptions.create(
                 model="whisper-large-v3",
                 file=("a.wav", audio, "audio/wav"),
             )
-            tr = tr.text
-        ask(tr)
-    p = st.chat_input("Say something…")
-    if p:
-        ask(p)
+            voice_text = tr.text
+    p = st.chat_input("Ask anything, explore ideas…")
+    user_text = p or voice_text
+    if user_text:
+        ss.chat.append({"role": "user", "content": user_text})
+        msgs = [{"role": "system",
+                 "content": PERSONALITIES[pers]}]
+        msgs = msgs + ss.chat
+        with st.spinner("…"):
+            reply = get_reply(msgs)
+        newm = {"role": "assistant", "content": reply}
+        if speak:
+            newm["audio"] = tts_bytes(reply)
+        ss.chat.append(newm)
+        st.rerun()
 
 with tabs[1]:
+    st.markdown("## ⚡ Quick Actions")
+    TOOLS = {
+        "✍️ Writer": "Write a great short piece about:",        "📋 Summarize": "Summarize in key points:",
+        "🌐 Translate": "Translate both Hindi and English:",
+        "🧒 Explain": "Explain like I'm 12:",
+        "📝 Quiz": "5 MCQs, answers at end, on:",
+        "🃏 Cards": "8 flashcards Q:/A: on:",
+        "🗓️ Plan": "7-day study plan for:",
+        "💻 Code": "Write code for:",
+        "🐞 Fix": "Fix bugs and explain:",
+    }
+    names = list(TOOLS)
+    for row in range(0, len(names), 3):
+        cols = st.columns(3)
+        for i, c in enumerate(cols):
+            idx = row + i
+            if idx < len(names):
+                nm = names[idx]
+                if c.button(nm, key=nm):
+                    ss.tool = nm
+                    st.rerun()
+    if ss.tool:
+        st.markdown("### " + ss.tool)
+        task = st.text_area("Topic / text / code")
+        if st.button("🚀 Go"):
+            with st.spinner("…"):
+                r = get_reply([{"role": "user",
+                    "content": TOOLS[ss.tool] + " " + task}])
+            st.markdown(r)
+
+with tabs[2]:
+    st.markdown("## 🎨 Image Generator")
     ip = st.text_input(
-        "Describe your image 🎨",
-        "A tiger astronaut on the moon, digital art",
+        "Describe your image",
+        "Cyberpunk city, neon lights",
     )
     if st.button("✨ Create image"):
         with st.spinner("Painting… (20-40 sec)"):
@@ -151,16 +185,16 @@ with tabs[1]:
             url += requests.utils.quote(ip)
             url += "?width=768&height=768&nologo=true"
             st.image(url, caption=ip)
-            st.markdown("[⬇️ Download image](" + url + ")")
+            st.markdown("[⬇️ Download](" + url + ")")
 
-with tabs[2]:
+with tabs[3]:
+    st.markdown("## 🖼️ Photo Editor")
     up = st.file_uploader(
         "Upload a photo",
         type=["png", "jpg", "jpeg"],
     )
     if up:
-        img = Image.open(up).convert("RGB")
-        st.image(img, caption="Original")
+        img = Image.open(up).convert("RGB")        st.image(img, caption="Original")
         g = st.toggle("⬛ Black & white")
         br = st.slider("☀️ Brightness", 0.5, 2.0, 1.0)
         co = st.slider("🎚️ Contrast", 0.5, 2.0, 1.0)
@@ -181,39 +215,4 @@ with tabs[2]:
             b.getvalue(),
             "edited.png",
             "image/png",
-        )
-
-with tabs[3]:
-    topic = st.text_input(
-        "What are you studying? 📚",
-        "Photosynthesis",
-    )
-    c1, c2 = st.columns(2)
-    if c1.button("🧒 Explain simply"):
-        study("Explain like I'm 12, with examples: " + topic,
-              "🧒 Simple explanation")
-    if c2.button("📝 Quiz me"):
-        study("Give 5 MCQ questions on " + topic +
-              ". Put answers at the end.", "📝 Quiz")
-    if c1.button("🃏 Flashcards"):
-        study("Make 8 flashcards (Q: / A:) about " + topic,
-              "🃏 Flashcards")
-    if c2.button("🗓️ Study plan"):
-        study("Make a 7-day study plan to master " + topic,
-              "🗓️ Plan")
-
-with tabs[4]:
-    mode = st.selectbox("Mode", [
-        "✍️ Write code",
-        "🐞 Fix my code",
-        "📖 Explain code",
-    ])
-    task = st.text_area("Describe task / paste code")
-    if st.button("🚀 Go"):
-        if mode == "✍️ Write code":
-            pr = "Write code: " + task
-        elif mode == "🐞 Fix my code":
-            pr = "Fix bugs and explain: " + task
-        else:
-            pr = "Explain line by line: " + task
-        study(pr, "💻 Result")
+)
